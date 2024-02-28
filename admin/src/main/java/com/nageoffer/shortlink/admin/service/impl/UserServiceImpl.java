@@ -9,6 +9,8 @@ import com.nageoffer.shortlink.admin.dao.entity.UserDO;
 import com.nageoffer.shortlink.admin.dao.mapper.UserMapper;
 import com.nageoffer.shortlink.admin.dto.resp.UserRespDTO;
 import com.nageoffer.shortlink.admin.service.UserService;
+import lombok.RequiredArgsConstructor;
+import org.redisson.api.RBloomFilter;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
@@ -16,7 +18,13 @@ import org.springframework.stereotype.Service;
  * 用户接口实现层
  */
 @Service
+@RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
+    private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
+
+    /**
+     * 根据用户名查询用户信息
+     */
     @Override
     public UserRespDTO getUserByUsername(String username) {
         LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class)
@@ -28,5 +36,15 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         UserRespDTO result = new UserRespDTO();
         BeanUtils.copyProperties(userDO, result);
         return result;
+    }
+
+    /**
+     * 查询用户名是否存在
+     * @param username
+     * @return true：用户不存在；false：用户存在
+     */
+    @Override
+    public boolean hasUsername(String username) {
+        return userRegisterCachePenetrationBloomFilter.contains(username);
     }
 }
