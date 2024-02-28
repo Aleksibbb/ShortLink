@@ -45,11 +45,16 @@
             <artifactId>redisson-spring-boot-starter</artifactId>
         </dependency>
 
-
         <!-- hutool-->
         <dependency>
             <groupId>cn.hutool</groupId>
             <artifactId>hutool-all</artifactId>
+        </dependency>
+
+        <!-- ShardingSphere-JDBC-->
+        <dependency>
+            <groupId>org.apache.shardingsphere</groupId>
+            <artifactId>shardingsphere-jdbc-core</artifactId>
         </dependency>
     </dependencies>
 </project>
