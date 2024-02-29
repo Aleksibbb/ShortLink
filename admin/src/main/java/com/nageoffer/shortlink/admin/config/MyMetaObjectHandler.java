@@ -14,6 +14,7 @@ public class MyMetaObjectHandler implements MetaObjectHandler {
      */
     @Override
     public void insertFill(MetaObject metaObject) {
+        //UserDO、GroupDO
         strictInsertFill(metaObject, "createTime", Date::new, Date.class);
         strictInsertFill(metaObject, "updateTime", Date::new, Date.class);
         strictInsertFill(metaObject, "delFlag", () -> 0, Integer.class);

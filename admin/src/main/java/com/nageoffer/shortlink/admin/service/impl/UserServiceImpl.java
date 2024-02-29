@@ -97,7 +97,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     }
 
     /**
-     * 用户修改
+     * 用户修改信息
      * @param requestParam
      */
     @Override
