@@ -1,6 +1,8 @@
 package com.nageoffer.shortlink.admin.service.impl;
 
 import cn.hutool.core.bean.BeanUtil;
+import cn.hutool.core.lang.UUID;
+import com.alibaba.fastjson2.JSON;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.conditions.update.LambdaUpdateWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -9,18 +11,24 @@ import com.nageoffer.shortlink.admin.common.convention.exception.ClientException
 import com.nageoffer.shortlink.admin.common.enums.UserErrorCodeEnum;
 import com.nageoffer.shortlink.admin.dao.entity.UserDO;
 import com.nageoffer.shortlink.admin.dao.mapper.UserMapper;
+import com.nageoffer.shortlink.admin.dto.req.UserLoginReqDTO;
 import com.nageoffer.shortlink.admin.dto.req.UserRegisterReqDTO;
 import com.nageoffer.shortlink.admin.dto.req.UserUpdateReqDTO;
+import com.nageoffer.shortlink.admin.dto.resp.UserLoginRespDTO;
 import com.nageoffer.shortlink.admin.dto.resp.UserRespDTO;
 import com.nageoffer.shortlink.admin.service.UserService;
+import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
-import static com.nageoffer.shortlink.admin.common.constant.RedisCacheConstant.LOCK_USER_REGISTER_KEY;
+import java.util.concurrent.TimeUnit;
+
+import static com.nageoffer.shortlink.admin.common.constant.RedisCacheConstant.*;
 import static com.nageoffer.shortlink.admin.common.enums.UserErrorCodeEnum.*;
 
 /**
@@ -31,6 +39,8 @@ import static com.nageoffer.shortlink.admin.common.enums.UserErrorCodeEnum.*;
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
     private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
     private final RedissonClient redissonClient;
+    @Resource
+    private StringRedisTemplate stringRedisTemplate;
 
     /**
      * 根据用户名查询用户信息
@@ -96,5 +106,52 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         LambdaUpdateWrapper<UserDO> updateWrapper = Wrappers.lambdaUpdate(UserDO.class)
                 .eq(UserDO::getUsername, requestParam.getUsername());
         baseMapper.update(BeanUtil.toBean(requestParam, UserDO.class), updateWrapper);
+    }
+
+    /**
+     * 用户登录
+     * @param requestParam
+     * @return
+     */
+    @Override
+    public UserLoginRespDTO login(UserLoginReqDTO requestParam) {
+        LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class)
+                .eq(UserDO::getUsername, requestParam.getUsername())
+                .eq(UserDO::getPassword, requestParam.getPassword())
+                .eq(UserDO::getDelFlag, 0);
+        UserDO userDO = baseMapper.selectOne(queryWrapper);
+        // 1. 判断用户是否存在
+        if(userDO == null){
+            throw new ClientException(USER_NULL);
+        }
+        // 2. 判断用户是否登录
+        Boolean hasLogin = stringRedisTemplate.hasKey(USER_LOGIN_KEY + requestParam.getUsername());
+        if(hasLogin){
+            throw new ClientException(USER_HAS_LOGIN);
+        }
+        String token = UUID.randomUUID().toString(true);
+        stringRedisTemplate.opsForHash().put(USER_LOGIN_KEY + requestParam.getUsername(), token, JSON.toJSONString(userDO));
+        stringRedisTemplate.expire(USER_LOGIN_KEY + requestParam.getUsername(), USER_LOGIN_TTL, TimeUnit.MINUTES);
+        return new UserLoginRespDTO(token);
+    }
+
+    /**
+     * 检查用户是否登录
+     */
+    @Override
+    public Boolean checkLogin(String token, String username) {  //前端回传回来token和用户名
+        return stringRedisTemplate.opsForHash().get(USER_LOGIN_KEY + username, token) != null;
+    }
+
+    /**
+     * 用户退出登录
+     */
+    @Override
+    public void logout(String token, String username) {
+        // 先判断用户是否登录
+        if(!checkLogin(token, username)){
+            throw new ClientException("用户Token不存在或用户未登录");
+        }
+        stringRedisTemplate.opsForHash().delete(USER_LOGIN_KEY + username, token);
     }
 }
