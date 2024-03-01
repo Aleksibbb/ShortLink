@@ -4,6 +4,9 @@ import com.baomidou.mybatisplus.annotation.TableName;
 import com.nageoffer.shortlink.admin.common.database.BaseDO;
 import lombok.Data;
 
+/**
+ * 用户实体
+ */
 @Data
 @TableName("t_user")
 public class UserDO extends BaseDO {

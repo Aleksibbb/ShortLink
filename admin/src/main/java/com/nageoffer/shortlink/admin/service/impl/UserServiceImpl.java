@@ -19,6 +19,7 @@ import com.nageoffer.shortlink.admin.dto.resp.UserRespDTO;
 import com.nageoffer.shortlink.admin.service.UserService;
 import jakarta.annotation.Resource;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
@@ -34,6 +35,7 @@ import static com.nageoffer.shortlink.admin.common.enums.UserErrorCodeEnum.*;
 /**
  * 用户接口实现层
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
@@ -42,9 +44,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     @Resource
     private StringRedisTemplate stringRedisTemplate;
 
-    /**
-     * 根据用户名查询用户信息
-     */
     @Override
     public UserRespDTO getUserByUsername(String username) {
         LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class)
@@ -58,19 +57,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return result;
     }
 
-    /**
-     * 查询用户名是否存在
-     */
     @Override
     public boolean hasUsername(String username) {
         return userRegisterCachePenetrationBloomFilter.contains(username);
     }
 
-    /**
-     * 用户注册
-     *
-     * @param requestParam：用户请求参数
-     */
     @Override
     public void register(UserRegisterReqDTO requestParam) {
         // 1. 判断用户名是否存在
@@ -96,10 +87,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }
     }
 
-    /**
-     * 用户修改信息
-     * @param requestParam
-     */
     @Override
     public void update(UserUpdateReqDTO requestParam) {
         // TODO 验证要修改的用户是否是当前登陆用户
@@ -108,11 +95,6 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         baseMapper.update(BeanUtil.toBean(requestParam, UserDO.class), updateWrapper);
     }
 
-    /**
-     * 用户登录
-     * @param requestParam
-     * @return
-     */
     @Override
     public UserLoginRespDTO login(UserLoginReqDTO requestParam) {
         LambdaQueryWrapper<UserDO> queryWrapper = Wrappers.lambdaQuery(UserDO.class)
@@ -135,17 +117,11 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         return new UserLoginRespDTO(token);
     }
 
-    /**
-     * 检查用户是否登录
-     */
     @Override
     public Boolean checkLogin(String token, String username) {  //前端回传回来token和用户名
         return stringRedisTemplate.opsForHash().get(USER_LOGIN_KEY + username, token) != null;
     }
 
-    /**
-     * 用户退出登录
-     */
     @Override
     public void logout(String token, String username) {
         // 先判断用户是否登录
