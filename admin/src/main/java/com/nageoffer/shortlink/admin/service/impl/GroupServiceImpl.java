@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.nageoffer.shortlink.admin.common.biz.user.UserContext;
 import com.nageoffer.shortlink.admin.dao.entity.GroupDO;
 import com.nageoffer.shortlink.admin.dao.mapper.GroupMapper;
 import com.nageoffer.shortlink.admin.dto.resp.ShortLinkGroupRespDTO;
@@ -35,8 +36,9 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         // 3. 不存在，保存当前分组
         GroupDO groupDO = GroupDO.builder()
                 .gid(gid)
-                .sortOrder(0)
                 .name(groupName)
+                .username(UserContext.getUsername())
+                .sortOrder(0)
                 .build();
         baseMapper.insert(groupDO);
     }
@@ -47,11 +49,9 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
      */
     @Override
     public List<ShortLinkGroupRespDTO> listGroup() {
-        // 1. 查询短链接分组
         LambdaQueryWrapper<GroupDO> queryWrapper = Wrappers.lambdaQuery(GroupDO.class)
                 .eq(GroupDO::getDelFlag, 0)
-                // TODO 获取用户名
-                .eq(GroupDO::getUsername, "mading")
+                .eq(GroupDO::getUsername, UserContext.getUsername())
                 .orderByDesc(GroupDO::getSortOrder, GroupDO::getUpdateTime);
         List<GroupDO> groupDOList = baseMapper.selectList(queryWrapper);
         return BeanUtil.copyToList(groupDOList, ShortLinkGroupRespDTO.class);
@@ -63,7 +63,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
     public boolean hasGid(String gid){
         LambdaQueryWrapper<GroupDO> wrapper = Wrappers.lambdaQuery(GroupDO.class)
                 .eq(GroupDO::getGid, gid)
-                // TODO 设置用户名
+                .eq(GroupDO::getUsername, UserContext.getUsername())
                 .eq(GroupDO::getDelFlag, 0);
         GroupDO groupDO = baseMapper.selectOne(wrapper);
         return groupDO != null;
