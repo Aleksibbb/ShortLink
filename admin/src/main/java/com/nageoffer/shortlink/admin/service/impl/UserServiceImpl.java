@@ -82,7 +82,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             // 尝试获取锁
             if (lock.tryLock()) {
                 int inserted = baseMapper.insert(BeanUtil.toBean(requestParam, UserDO.class));
-                // 2. 判断用户记录是否创建成功
+                // 2. 判断用户记录是否创建成功e1ebb82dab0e4f5fac8a8ae7891de14f
                 if (inserted < 1) {
                     throw new ClientException(USER_SAVE_ERROR);
                 }
@@ -131,7 +131,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         }
         String token = UUID.randomUUID().toString(true);
         stringRedisTemplate.opsForHash().put(USER_LOGIN_KEY + requestParam.getUsername(), token, JSON.toJSONString(userDO));
-        stringRedisTemplate.expire(USER_LOGIN_KEY + requestParam.getUsername(), USER_LOGIN_TTL, TimeUnit.MINUTES);
+        stringRedisTemplate.expire(USER_LOGIN_KEY + requestParam.getUsername(), USER_LOGIN_TTL, TimeUnit.DAYS);  // 改为30天
         return new UserLoginRespDTO(token);
     }
 
