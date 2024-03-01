@@ -25,5 +25,5 @@ public class ShortLinkGroupRespDTO {
     /**
      * 分组排序
      */
-    private int sortOrder;
+    private Integer sortOrder;
 }

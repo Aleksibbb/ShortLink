@@ -39,5 +39,5 @@ public class GroupDO extends BaseDO {
     /**
      * 分组排序
      */
-    private int sortOrder;
+    private Integer sortOrder;
 }
