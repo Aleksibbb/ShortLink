@@ -24,10 +24,7 @@ import java.util.List;
 @Slf4j
 @Service
 public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implements GroupService {
-    /**
-     * 创建短链接分组
-     * @param groupName：分组名称
-     */
+
     @Override
     public void save(String groupName) {
         String gid = null;
@@ -46,10 +43,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         baseMapper.insert(groupDO);
     }
 
-    /**
-     * 查询短链接分组
-     * @return：短链接分组集合
-     */
+
     @Override
     public List<ShortLinkGroupRespDTO> listGroup() {
         LambdaQueryWrapper<GroupDO> queryWrapper = Wrappers.lambdaQuery(GroupDO.class)
@@ -60,10 +54,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         return BeanUtil.copyToList(groupDOList, ShortLinkGroupRespDTO.class);
     }
 
-    /**
-     * 修改短链接分组名称
-     * @param requestParam
-     */
+
     @Override
     public void updateGroup(ShortLinkGroupUpdateReqDTO requestParam) {
         LambdaUpdateWrapper<GroupDO> updateWrapper = Wrappers.lambdaUpdate(GroupDO.class)
@@ -74,9 +65,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         baseMapper.update(BeanUtil.toBean(requestParam, GroupDO.class), updateWrapper);
     }
 
-    /**
-     * 删除短链接分组
-     */
+
     @Override
     public void deleteGroup(String gid) {
         LambdaQueryWrapper<GroupDO> deleteWrapper = Wrappers.lambdaQuery(GroupDO.class)
@@ -88,11 +77,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
         baseMapper.update(groupDO, deleteWrapper);
     }
 
-    /**
-     * 短链接分组排序
-     * @param requestParam：短链接分组集合
-     * 需求：前端将排序后的集合返回，我们只需要遍历集合，复制、更新到数据库即可
-     */
+
     @Override
     public void sortGroup(List<ShortLinkGroupSortReqDTO> requestParam) {
         requestParam.forEach(each -> {
