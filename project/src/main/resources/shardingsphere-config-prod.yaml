@@ -5,7 +5,7 @@ dataSources:
     driverClassName: com.mysql.cj.jdbc.Driver
     jdbcUrl: jdbc:mysql://127.0.0.1:3306/link?useSSL=false&useUnicode=true&characterEncoding=UTF-8&rewriteBatchedStatements=true&allowMultiQueries=true&serverTimezone=Asia/Shanghai
     username: root
-    password: 123456
+    password: 123456  # 远程服务器上的复杂密码
 
 rules:
   - !SHARDING
