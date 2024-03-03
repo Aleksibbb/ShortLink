@@ -24,6 +24,7 @@ import org.redisson.api.RBloomFilter;
 import org.redisson.api.RLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.BeanUtils;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -71,11 +72,17 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         RLock lock = redissonClient.getLock(LOCK_USER_REGISTER_KEY + requestParam.getUsername());
         try {
             // 尝试获取锁
+            // 为什么拿到锁之后还要判断用户记录创建是否成功？
+            // 因为可能有些人刚释放锁，另一个人就获取到了
             if (lock.tryLock()) {
-                int inserted = baseMapper.insert(BeanUtil.toBean(requestParam, UserDO.class));
-                // 2. 判断用户记录是否创建成功e1ebb82dab0e4f5fac8a8ae7891de14f
-                if (inserted < 1) {
-                    throw new ClientException(USER_SAVE_ERROR);
+                try{
+                    int inserted = baseMapper.insert(BeanUtil.toBean(requestParam, UserDO.class));
+                    // 2. 判断用户记录是否创建成功e1ebb82dab0e4f5fac8a8ae7891de14f
+                    if (inserted < 1) {     // 数据库连接问题、事务问题、数据库异常
+                        throw new ClientException(USER_SAVE_ERROR);     //用户保存失败
+                    }
+                } catch (DuplicateKeyException ex){     // 唯一索引异常
+                    throw new ClientException(USER_EXIST);
                 }
                 // 3. 将用户名信息保存到布隆过滤器
                 userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
