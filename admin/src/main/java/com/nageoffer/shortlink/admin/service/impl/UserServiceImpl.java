@@ -88,7 +88,8 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                 }
                 // 3. 将用户名信息保存到布隆过滤器
                 userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
-                groupService.saveGroup("默认分组");
+                //注意：这里直接 groupService.saveGroup("默认分组"); 会出错
+                groupService.saveGroup(requestParam.getUsername(), "默认分组");
                 return; // return 之后还会执行finally
             }
             throw new ClientException(USER_NAME_EXIST);
