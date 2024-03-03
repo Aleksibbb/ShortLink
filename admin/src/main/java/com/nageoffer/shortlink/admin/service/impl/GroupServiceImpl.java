@@ -35,7 +35,7 @@ public class GroupServiceImpl extends ServiceImpl<GroupMapper, GroupDO> implemen
 
 
     @Override
-    public void save(String groupName) {
+    public void saveGroup(String groupName) {
         String gid = null;
         do {
             // 1. 生成6位gid
