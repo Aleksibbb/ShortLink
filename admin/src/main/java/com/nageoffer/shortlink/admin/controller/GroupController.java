@@ -55,6 +55,9 @@ public class GroupController {
         return Results.success();
     }
 
+    /**
+     * 短链接分组排序
+     */
     @PostMapping("/api/short-link/admin/v1/group/sort")
     public Result<Void> sortGroup(@RequestBody List<ShortLinkGroupSortReqDTO> requestParam){
         groupService.sortGroup(requestParam);
