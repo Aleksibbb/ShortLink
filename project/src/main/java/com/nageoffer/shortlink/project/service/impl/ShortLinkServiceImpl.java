@@ -227,12 +227,14 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         boolean contains = shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl);
         if(!contains){
             // 3.1 不存在，直接返回
+            ((HttpServletResponse) response).sendRedirect("/page/notfound");
             return;
         }
         // 4. 存在，查询是否缓存空对象
         String gotoIsNullShortLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, fullShortUrl));
         if(StrUtil.isNotBlank(gotoIsNullShortLink)){
             // 4.1 查询缓存不为空，即如果查到 缓存的value 为 "-" ，说明是空对象，直接返回
+            ((HttpServletResponse) response).sendRedirect("/page/notfound");
             return;
         }
         // 5. 没有缓存空对象，需要查数据库（避免同一时间，大量请求查询数据库，要加分布式锁)
@@ -253,6 +255,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             // 5.4 查询路由表
             if(shortLinkGotoDO == null){
                 stringRedisTemplate.opsForValue().set(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, fullShortUrl), "-", 30, TimeUnit.MINUTES);
+                ((HttpServletResponse) response).sendRedirect("/page/notfound");
                 return;
             }
             // 5.5 查询短链接表
@@ -263,9 +266,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .eq(ShortLinkDO::getDelFlag, 0);
             ShortLinkDO shortLinkDO = baseMapper.selectOne(queryWrapper);
             if(shortLinkDO != null){
-                //5.6 查询短链接是否超过有效期（一般来说，Redis中缓存过期，就应该是超过有效期了，这里做个兜底判断）
+                //5.6 查询短链接是否超过有效期（一般来说，对于非永久有效的短链接，Redis中缓存过期，就应该是超过有效期了。这里做个兜底判断）
                 if(shortLinkDO.getValidDate() != null && shortLinkDO.getValidDate().before(new Date())){
                     stringRedisTemplate.opsForValue().set(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, fullShortUrl), "-", 30, TimeUnit.MINUTES);
+                    ((HttpServletResponse) response).sendRedirect("/page/notfound");
                     return;
                 }
                 stringRedisTemplate.opsForValue().set(
