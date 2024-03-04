@@ -40,9 +40,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.concurrent.TimeUnit;
 
-import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.GOTO_SHORT_LINK_KEY;
-import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.LOCK_GOTO_SHORT_LINK_KEY;
+import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.*;
 
 
 /**
@@ -217,23 +217,35 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             ((HttpServletResponse) response).sendRedirect(originalLink);
             return;
         }
-        // 3. 不存在，需要查数据库（避免同一时间，大量请求查询数据库，要加分布式锁)
+        // 3. 判断布隆过滤器中是否存在
+        boolean contains = shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl);
+        if(!contains){
+            // 3.1 不存在，直接返回
+            return;
+        }
+        // 4. 存在，查询是否缓存空对象
+        String gotoIsNullShortLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, fullShortUrl));
+        if(StrUtil.isNotBlank(gotoIsNullShortLink)){
+            // 4.1 查询缓存不为空，即如果查到 缓存的value 为 "-" ，说明是空对象，直接返回
+            return;
+        }
+        // 5. 没有缓存空对象，需要查数据库（避免同一时间，大量请求查询数据库，要加分布式锁)
         RLock lock = redissonClient.getLock(String.format(LOCK_GOTO_SHORT_LINK_KEY, fullShortUrl));
         lock.lock();
         try{
-            // 3.1 Double Check，防止有的用户，在尝试获取锁的时候，锁被前人释放，但此时缓存中已有数据
+            // 5.1 Double Check，防止有的用户，在尝试获取锁的时候，锁被前人释放，但此时缓存中已有数据
             originalLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_SHORT_LINK_KEY, fullShortUrl));
             if(StrUtil.isNotBlank(originalLink)){
-                // 3.2 存在，直接跳转
+                // 5.2 存在，直接跳转
                 ((HttpServletResponse) response).sendRedirect(originalLink);
                 return;
             }
-            // 3.3 不存在，再去查数据库
+            // 5.3 不存在，再去查数据库
             LambdaQueryWrapper<ShortLinkGotoDO> linkGotoQueryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
                     .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
             ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(linkGotoQueryWrapper);
             if(shortLinkGotoDO == null){
-                // 严谨来说，此处需要封控
+                stringRedisTemplate.opsForValue().set(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, fullShortUrl), "-", 30, TimeUnit.MINUTES);
                 return;
             }
             LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
