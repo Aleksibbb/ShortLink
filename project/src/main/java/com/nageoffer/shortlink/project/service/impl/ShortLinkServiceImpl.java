@@ -87,9 +87,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .fullShortUrl(fullShortUrl)
                 .build();
         try {
-            // 3. 保存到 t_link
+            // 4. 保存到 t_link
             baseMapper.insert(shortLinkDO);
-            // 4. 保存到 t_link_goto
+            // 5. 保存到 t_link_goto
             shortLinkGotoMapper.insert(shortLinkGotoDO);
         } catch (DuplicateKeyException ex) {    // 捕获到唯一索引冲突
             // TODO 已经误判的短链接如何处理
@@ -104,12 +104,13 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 throw new ServiceException("短链接重复生成");
             }
         }
+        // 6. 缓存预热
         stringRedisTemplate.opsForValue().set(
                 String.format(GOTO_SHORT_LINK_KEY, fullShortUrl),
                 requestParam.getOriginUrl(),
                 LinkUtil.getLinkCacheValidDate(requestParam.getValidDate()), TimeUnit.MILLISECONDS);
         shortUriCreateCachePenetrationBloomFilter.add(fullShortUrl);
-        // 4. 返回响应对象
+        // 7. 返回响应对象
         return ShortLinkCreateRespDTO.builder()
                 .gid(requestParam.getGid())
                 .fullShortUrl("http://" + shortLinkDO.getFullShortUrl())
