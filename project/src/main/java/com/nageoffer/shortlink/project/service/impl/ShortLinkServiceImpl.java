@@ -72,6 +72,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final LinkAccessStatsMapper linkAccessStatsMapper;
     private final LinkLocaleStatsMapper linkLocaleStatsMapper;
     private final LinkOsStatsMapper linkOsStatsMapper;
+    private final LinkBrowserStatsMapper linkBrowserStatsMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
 
@@ -310,7 +311,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
      * 短链接访问基本数据监控
      */
     private void shortLinkStats(String fullShortUrl, String gid, ServletRequest request, ServletResponse response) {
-        // 1. UV 统计
+        // 1. UV 访问统计
         // 首次访问标志
         AtomicBoolean uvFirstFlag = new AtomicBoolean();
         // 获取请求中的所有cookie
@@ -342,12 +343,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 addResponseCookieTask.run();
             }
 
-            // 2. UIP 统计
+            // 2. UIP 访问统计
             //String remoteAddr = request.getRemoteAddr();
             String remoteAddr = LinkUtil.getIp((HttpServletRequest) request);
             Long uipAdded = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UIP_KEY + fullShortUrl, remoteAddr);
             boolean uipFirstFlag = uipAdded != null && uipAdded > 0;
-            // 3. PV 统计
+            // 3. PV 访问统计
             if (StrUtil.isBlank(gid)) {
                 LambdaQueryWrapper<ShortLinkGotoDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
                         .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
@@ -368,7 +369,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .gid(gid)
                     .build();
             linkAccessStatsMapper.shortLinkStats(linkAccessStatsDO);
-            // 4. 地区统计
+            // 4. 地区访问统计
             Map<String, Object> localeParamMap = new HashMap<>();
             localeParamMap.put("key", statsLocaleAmapKey);
             localeParamMap.put("ip", remoteAddr);
@@ -392,7 +393,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .build();
                 linkLocaleStatsMapper.shortLinkLocaleStats(linkLocaleStatsDO);
             }
-            // 5. 操作系统统计
+            // 5. 操作系统访问统计
             LinkOsStatsDO linkOsStatsDO = LinkOsStatsDO.builder()
                     .fullShortUrl(fullShortUrl)
                     .gid(gid)
@@ -401,6 +402,15 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .os(LinkUtil.getOs((HttpServletRequest) request))
                     .build();
             linkOsStatsMapper.shortLinkOsStats(linkOsStatsDO);
+            // 6. 浏览器访问统计
+            LinkBrowserStatsDO linkBrowserStatsDO = LinkBrowserStatsDO.builder()
+                    .fullShortUrl(fullShortUrl)
+                    .gid(gid)
+                    .date(new Date())
+                    .cnt(1)
+                    .browser(LinkUtil.getBrowser((HttpServletRequest) request))
+                    .build();
+            linkBrowserStatsMapper.shortLinkBrowserStats(linkBrowserStatsDO);
         } catch (Throwable ex) {
             log.error("短链接访问量统计异常", ex);
         }
