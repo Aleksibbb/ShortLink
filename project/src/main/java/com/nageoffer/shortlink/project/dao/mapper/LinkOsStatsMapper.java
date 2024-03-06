@@ -5,7 +5,9 @@ import com.nageoffer.shortlink.project.dao.entity.LinkOsStatsDO;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Param;
 
-
+/**
+ * 操作系统访问监控持久层
+ */
 public interface LinkOsStatsMapper extends BaseMapper<LinkOsStatsDO> {
 
     /**
