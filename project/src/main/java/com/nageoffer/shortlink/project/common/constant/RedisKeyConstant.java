@@ -23,4 +23,9 @@ public class RedisKeyConstant {
      * 短链接统计判断是否新用户缓存标识（UV）
      */
     public static final String SHORT_LINK_STATS_UV_KEY = "short-link:stats:uv:";
+
+    /**
+     * 短链接统计判断是否新IP缓存标识（UIP）
+     */
+    public static final String SHORT_LINK_STATS_UIP_KEY = "short-link:stats:uip:";
 }

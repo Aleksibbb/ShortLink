@@ -329,14 +329,20 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .findFirst()
                         .map(Cookie::getValue)
                         .ifPresentOrElse(each -> {
-                            Long added = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UV_KEY + fullShortUrl, each);
-                            uvFirstFlag.set(added != null && added > 0L);
+                            Long uvAdded = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UV_KEY + fullShortUrl, each);
+                            uvFirstFlag.set(uvAdded != null && uvAdded > 0L);
                         }, addResponseCookieTask);
             } else {
                 // 1.2 请求中的cookies为空，一定是当前用户第一次访问该链接
                 addResponseCookieTask.run();
             }
-            // 2. PV 统计
+
+            // 2. UIP 统计
+//            String remoteAddr = request.getRemoteAddr();
+            String remoteAddr = LinkUtil.getIp((HttpServletRequest) request);
+            Long uipAdded = stringRedisTemplate.opsForSet().add(SHORT_LINK_STATS_UIP_KEY + fullShortUrl, remoteAddr);
+            boolean uipFirstFlag = uipAdded != null && uipAdded > 0;
+            // 3. PV 统计
             if(StrUtil.isBlank(gid)){
                 LambdaQueryWrapper<ShortLinkGotoDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
                         .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
@@ -349,7 +355,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             LinkAccessStatsDO linkAccessStatsDO = LinkAccessStatsDO.builder()
                     .pv(1)
                     .uv(uvFirstFlag.get() ? 1 : 0)
-                    .uip(1)
+                    .uip(uipFirstFlag ? 1 : 0)
                     .hour(hour)
                     .weekday(weekValue)
                     .date(new Date())
@@ -375,7 +381,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 throw new ServiceException("短链接频繁生成，请稍后再试");
             }
             String originUrl = requestParam.getOriginUrl();
-            // originUrl += System.currentTimeMillis();
+            originUrl += System.currentTimeMillis();
             shortUri = HashUtil.hashToBase62(originUrl);
             // 布隆过滤器中不存在
             if (!shortUriCreateCachePenetrationBloomFilter.contains(requestParam.getDomain() + "/" + shortUri)) {
