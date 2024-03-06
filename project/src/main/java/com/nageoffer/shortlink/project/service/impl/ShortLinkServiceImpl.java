@@ -75,6 +75,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final LinkOsStatsMapper linkOsStatsMapper;
     private final LinkBrowserStatsMapper linkBrowserStatsMapper;
     private final LinkAccessLogsMapper linkAccessLogsMapper;
+    private final LinkDeviceStatsMapper linkDeviceStatsMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
 
@@ -427,6 +428,15 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .user(uv.get())     // 用户标识（UUID表示的cookie)
                     .build();
             linkAccessLogsMapper.insert(linkAccessLogsDO);
+            // 8. 访问设备统计
+            LinkDeviceStatsDO linkDeviceStatsDO = LinkDeviceStatsDO.builder()
+                    .fullShortUrl(fullShortUrl)
+                    .gid(gid)
+                    .date(new Date())
+                    .cnt(1)
+                    .device(LinkUtil.getDevice((HttpServletRequest) request))
+                    .build();
+            linkDeviceStatsMapper.shortLinkDeviceState(linkDeviceStatsDO);
         } catch (Throwable ex) {
             log.error("短链接访问量统计异常", ex);
         }
