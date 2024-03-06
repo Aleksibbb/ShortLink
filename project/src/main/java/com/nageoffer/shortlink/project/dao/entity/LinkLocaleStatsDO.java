@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 import java.util.Date;
 
 /**
- * 基础访问监控实体
+ * 地区访问监控实体
  */
 @Data
 @Builder
@@ -63,20 +63,4 @@ public class LinkLocaleStatsDO extends BaseDO {
      * 国家标识
      */
     private String country;
-
-    /**
-     * 创建时间
-     */
-    private Date createTime;
-
-    /**
-     * 修改时间
-     */
-    private Date updateTime;
-
-    /**
-     * 删除标识 0表示删除 1表示未删除
-     */
-    private Integer delFlag;
-
 }
