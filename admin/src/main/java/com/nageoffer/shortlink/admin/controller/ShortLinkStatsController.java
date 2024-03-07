@@ -14,7 +14,11 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequiredArgsConstructor
 public class ShortLinkStatsController {
-    private final ShortLinkRemoteService shortLinkRemoteService;
+    /**
+     * 后续重构为 SpringCloud Feign 调用
+     */
+    ShortLinkRemoteService shortLinkRemoteService = new ShortLinkRemoteService() {
+    };
 
     /**
      * 访问单个短链接指定时间内监控数据
