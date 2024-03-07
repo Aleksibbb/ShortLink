@@ -8,7 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 /**
- * 高频IP访问监控实体
+ * 访问日志监控实体
  */
 @Data
 @Builder
@@ -50,4 +50,19 @@ public class LinkAccessLogsDO extends BaseDO {
      * ip
      */
     private String ip;
+
+    /**
+     * 访问网络
+     */
+    private String network;
+
+    /**
+     * 访问设备
+     */
+    private String device;
+
+    /**
+     * 地区
+     */
+    private String locale;
 }
