@@ -77,6 +77,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final LinkAccessLogsMapper linkAccessLogsMapper;
     private final LinkDeviceStatsMapper linkDeviceStatsMapper;
     private final LinkNetworkStatsMapper linkNetworkStatsMapper;
+    private final ShortLinkMapper shortLinkMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
 
@@ -98,6 +99,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         shortLinkDO.setFullShortUrl(fullShortUrl);
         shortLinkDO.setFavicon(getFavicon(requestParam.getOriginUrl()));
         shortLinkDO.setEnableStatus(0);     // 设置启用
+        shortLinkDO.setTotalPv(0);
+        shortLinkDO.setTotalUv(0);
+        shortLinkDO.setTotalUip(0);
         // 3. 获取短链接跳转实体对象
         ShortLinkGotoDO shortLinkGotoDO = ShortLinkGotoDO
                 .builder()
@@ -106,7 +110,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .build();
         try {
             // 4. 保存到 t_link
-            baseMapper.insert(shortLinkDO);
+            shortLinkMapper.insert(shortLinkDO);
             // 5. 保存到 t_link_goto
             shortLinkGotoMapper.insert(shortLinkGotoDO);
         } catch (DuplicateKeyException ex) {    // 捕获到唯一索引冲突
@@ -153,6 +157,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         if (hasShortLinkDO == null) {
             throw new ClientException("短链接不存在");
         }
+        // 2. 判断原始链接是否改变
+        boolean isOriginUrlNotChanged = Objects.equals(requestParam.getOriginUrl(), hasShortLinkDO.getOriginUrl());
         // 2. 构造新的短链接对象
         ShortLinkDO shortLinkDO = ShortLinkDO.builder()
                 .domain(hasShortLinkDO.getDomain())
@@ -162,6 +168,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .clickNum(hasShortLinkDO.getClickNum())
                 .enableStatus(0)
                 .gid(requestParam.getGid())
+                .totalPv(isOriginUrlNotChanged ? hasShortLinkDO.getTotalPv() : 0)
+                .totalUv(isOriginUrlNotChanged ? hasShortLinkDO.getTotalUv() : 0)
+                .totalUip(isOriginUrlNotChanged ? hasShortLinkDO.getTotalUip() : 0)
                 .validDateType(requestParam.getValidDateType())
                 .validDate(requestParam.getValidDate())
                 .describe(requestParam.getDescribe())
@@ -454,6 +463,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .fullShortUrl(fullShortUrl)
                     .build();
             linkAccessLogsMapper.insert(linkAccessLogsDO);
+            // 10. pv uv uip 自增
+            shortLinkMapper.incrementStats(gid, fullShortUrl, 1, uvFirstFlag.get() ? 1 : 0, uipFirstFlag ? 1 : 0);
         } catch (Throwable ex) {
             log.error("短链接访问量统计异常", ex);
         }
