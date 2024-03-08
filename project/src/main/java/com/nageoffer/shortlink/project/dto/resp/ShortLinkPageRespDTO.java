@@ -90,11 +90,11 @@ public class ShortLinkPageRespDTO {
     /**
      * 今日UIP
      */
-    private Integer todayUIp;
+    private Integer todayUip;
 
     /**
      * 历史UIP
      */
-    private Integer totalUIp;
+    private Integer totalUip;
 
 }

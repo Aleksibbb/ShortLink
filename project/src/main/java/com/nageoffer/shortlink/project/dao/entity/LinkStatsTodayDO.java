@@ -51,5 +51,5 @@ public class LinkStatsTodayDO extends BaseDO {
     /**
      * 今日UIP
      */
-    private Integer todayUIp;
+    private Integer todayUip;
 }
