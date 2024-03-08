@@ -29,6 +29,7 @@ import com.nageoffer.shortlink.project.dto.resp.ShortLinkPageRespDTO;
 import com.nageoffer.shortlink.project.service.ShortLinkService;
 import com.nageoffer.shortlink.project.toolkit.HashUtil;
 import com.nageoffer.shortlink.project.toolkit.LinkUtil;
+import com.nageoffer.shortlink.project.toolkit.TimeUtil;
 import jakarta.servlet.ServletRequest;
 import jakarta.servlet.ServletResponse;
 import jakarta.servlet.http.Cookie;
@@ -78,6 +79,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     private final LinkDeviceStatsMapper linkDeviceStatsMapper;
     private final LinkNetworkStatsMapper linkNetworkStatsMapper;
     private final ShortLinkMapper shortLinkMapper;
+    private final LinkStatsTodayMapper linkStatsTodayMapper;
     private final StringRedisTemplate stringRedisTemplate;
     private final RedissonClient redissonClient;
 
@@ -463,8 +465,28 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .fullShortUrl(fullShortUrl)
                     .build();
             linkAccessLogsMapper.insert(linkAccessLogsDO);
-            // 10. pv uv uip 自增
+            // 10. 历史 pv uv uip 统计（自增）
             shortLinkMapper.incrementStats(gid, fullShortUrl, 1, uvFirstFlag.get() ? 1 : 0, uipFirstFlag ? 1 : 0);
+            // 11. 今日 pv uv uip 统计
+            // uv
+            String keyTodayUv = SHORT_LINK_STATS_UV_KEY + DateUtil.formatDate(new Date()) + ":" + fullShortUrl;
+            Long uvTodayAdded = stringRedisTemplate.opsForSet().add(keyTodayUv, uv.get());
+            boolean uvTodayFirstFlag = uvTodayAdded != null && uvTodayAdded > 0;
+            stringRedisTemplate.expire(keyTodayUv, TimeUtil.getRemainSecondsOfDay(), TimeUnit.SECONDS);
+            // uip
+            String keyTodayUip = SHORT_LINK_STATS_UIP_KEY + DateUtil.formatDate(new Date()) + ":" + fullShortUrl;
+            Long uipTodayAdded = stringRedisTemplate.opsForSet().add(keyTodayUip, remoteAddr);
+            boolean uipTodayFirstFlag = uipTodayAdded != null && uipTodayAdded > 0;
+            stringRedisTemplate.expire(keyTodayUip, TimeUtil.getRemainSecondsOfDay(), TimeUnit.SECONDS);
+            LinkStatsTodayDO linkStatsTodayDO = LinkStatsTodayDO.builder()
+                    .gid(gid)
+                    .fullShortUrl(fullShortUrl)
+                    .date(new Date())
+                    .todayPv(1)
+                    .todayUv(uvTodayFirstFlag ? 1 : 0)
+                    .todayUip(uipTodayFirstFlag ? 1 : 0)
+                    .build();
+            linkStatsTodayMapper.shortLinkTodayStats(linkStatsTodayDO);
         } catch (Throwable ex) {
             log.error("短链接访问量统计异常", ex);
         }
