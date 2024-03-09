@@ -159,8 +159,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         if (hasShortLinkDO == null) {
             throw new ClientException("短链接不存在");
         }
-        // 2. 判断原始链接是否改变
-        boolean isOriginUrlNotChanged = Objects.equals(requestParam.getOriginUrl(), hasShortLinkDO.getOriginUrl());
         // 2. 构造新的短链接对象
         ShortLinkDO shortLinkDO = ShortLinkDO.builder()
                 .domain(hasShortLinkDO.getDomain())
@@ -170,9 +168,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 .clickNum(hasShortLinkDO.getClickNum())
                 .enableStatus(0)
                 .gid(requestParam.getGid())
-                .totalPv(isOriginUrlNotChanged ? hasShortLinkDO.getTotalPv() : 0)
-                .totalUv(isOriginUrlNotChanged ? hasShortLinkDO.getTotalUv() : 0)
-                .totalUip(isOriginUrlNotChanged ? hasShortLinkDO.getTotalUip() : 0)
                 .validDateType(requestParam.getValidDateType())
                 .validDate(requestParam.getValidDate())
                 .describe(requestParam.getDescribe())
@@ -215,12 +210,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
      */
     @Override
     public IPage<ShortLinkPageRespDTO> pageShortLink(ShortLinkPageReqDTO requestParam) {
-        LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
-                .eq(ShortLinkDO::getGid, requestParam.getGid())
-                .eq(ShortLinkDO::getEnableStatus, 0)
-                .eq(ShortLinkDO::getDelFlag, 0)
-                .orderByDesc(ShortLinkDO::getCreateTime);
-        IPage<ShortLinkDO> resultPage = baseMapper.selectPage(requestParam, queryWrapper);
+        IPage<ShortLinkDO> resultPage = baseMapper.pageLink(requestParam);
         return resultPage.convert(each -> {
             ShortLinkPageRespDTO result = BeanUtil.toBean(each, ShortLinkPageRespDTO.class);
             result.setDomain("http://" + result.getDomain());
