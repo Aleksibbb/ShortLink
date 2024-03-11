@@ -4,6 +4,7 @@ import cn.hutool.core.bean.BeanUtil;
 import cn.hutool.core.date.DateUtil;
 import cn.hutool.core.date.Week;
 import cn.hutool.core.lang.UUID;
+import cn.hutool.core.text.StrBuilder;
 import cn.hutool.core.util.ArrayUtil;
 import cn.hutool.core.util.StrUtil;
 import cn.hutool.http.HttpUtil;
@@ -86,24 +87,38 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     @Value("${short-link.stats.locale.amap-key}")
     private String statsLocaleAmapKey;
 
+    @Value("${short-link.domain.default}")
+    private String createShortLinkDefaultDomain;
+
     /**
      * 生成短链接
      */
     @Override
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO requestParam) {
         // fullShortUrl ： 域名 + "/" + 短链接六位后缀
-        // 1. 获取短链接后缀
-        String shortLinkSuffix = generateSuffix(requestParam);
-        String fullShortUrl = requestParam.getDomain() + "/" + shortLinkSuffix;
+        // 1. 获取完整短链接
+        String shortLinkSuffix = generateSuffix(requestParam);  // 六位后缀
+        String fullShortUrl = StrBuilder.create(createShortLinkDefaultDomain)
+                .append("/")
+                .append(shortLinkSuffix)
+                .toString();
         // 2. 获取短链接实体对象（需要单独设置的属性：短链接、完整短链接、启用标识）
-        ShortLinkDO shortLinkDO = BeanUtil.toBean(requestParam, ShortLinkDO.class);
-        shortLinkDO.setShortUri(shortLinkSuffix);
-        shortLinkDO.setFullShortUrl(fullShortUrl);
-        shortLinkDO.setFavicon(getFavicon(requestParam.getOriginUrl()));
-        shortLinkDO.setEnableStatus(0);     // 设置启用
-        shortLinkDO.setTotalPv(0);
-        shortLinkDO.setTotalUv(0);
-        shortLinkDO.setTotalUip(0);
+        ShortLinkDO shortLinkDO = ShortLinkDO.builder()
+                .domain(createShortLinkDefaultDomain)
+                .originUrl(requestParam.getOriginUrl())
+                .gid(requestParam.getGid())
+                .createdType(requestParam.getCreatedType())
+                .validDateType(requestParam.getValidDateType())
+                .validDate(requestParam.getValidDate())
+                .describe(requestParam.getDescribe())
+                .shortUri(shortLinkSuffix)
+                .enableStatus(0)
+                .totalPv(0)
+                .totalUv(0)
+                .totalUip(0)
+                .fullShortUrl(fullShortUrl)
+                .favicon(getFavicon(requestParam.getOriginUrl()))
+                .build();
         // 3. 获取短链接跳转实体对象
         ShortLinkGotoDO shortLinkGotoDO = ShortLinkGotoDO
                 .builder()
@@ -240,7 +255,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     @Override
     public void restoreUrl(String shortUri, ServletRequest request, ServletResponse response) {
         String serverName = request.getServerName();    // 域名
-        String fullShortUrl = serverName + "/" + shortUri;  // 完整短链接
+        String serverPort = Optional.of(request.getServerPort())
+                .filter(each -> !Objects.equals(each, 80))
+                .map(String::valueOf)
+                .map(each -> ":" + each)
+                .orElse("");
+        String fullShortUrl = serverName + serverPort + "/" + shortUri;  // 完整短链接
         // 1. 先查Redis
         String originalLink = stringRedisTemplate.opsForValue().get(String.format(GOTO_SHORT_LINK_KEY, fullShortUrl));
         // 2. 判断Redis中是否存在
