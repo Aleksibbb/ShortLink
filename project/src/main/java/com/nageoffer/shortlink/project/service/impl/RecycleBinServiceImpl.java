@@ -30,6 +30,7 @@ import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.G
 @RequiredArgsConstructor
 public class RecycleBinServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLinkDO> implements RecycleBinService {
     private final StringRedisTemplate stringRedisTemplate;
+
     /**
      * 短链接移至回收站
      */
@@ -41,7 +42,9 @@ public class RecycleBinServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLin
                 .eq(ShortLinkDO::getFullShortUrl, requestParam.getFullShortUrl())
                 .eq(ShortLinkDO::getEnableStatus, 0)
                 .eq(ShortLinkDO::getDelFlag, 0);
-        ShortLinkDO shortLinkDO = ShortLinkDO.builder().enableStatus(1).build();
+        ShortLinkDO shortLinkDO = ShortLinkDO.builder()
+                .enableStatus(1)
+                .build();
         baseMapper.update(shortLinkDO, updateWrapper);
         // 2. 将缓存中的数据删除
         stringRedisTemplate.delete(String.format(GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
@@ -67,6 +70,7 @@ public class RecycleBinServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLin
 
     /**
      * 恢复短链接
+     *
      * @param requestParam
      */
     @Override
@@ -77,7 +81,9 @@ public class RecycleBinServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLin
                 .eq(ShortLinkDO::getFullShortUrl, requestParam.getFullShortUrl())
                 .eq(ShortLinkDO::getEnableStatus, 1)
                 .eq(ShortLinkDO::getDelFlag, 0);
-        ShortLinkDO shortLinkDO = ShortLinkDO.builder().enableStatus(0).build();
+        ShortLinkDO shortLinkDO = ShortLinkDO.builder()
+                .enableStatus(0)
+                .build();
         baseMapper.update(shortLinkDO, updateWrapper);
         // 2. 将缓存的空值删除（"-"）
         stringRedisTemplate.delete(String.format(GOTO_IS_NULL_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
@@ -88,13 +94,16 @@ public class RecycleBinServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLin
      */
     @Override
     public void removeRecycleBin(RecycleBinRemoveReqDTO requestParam) {
-        // TODO 后面要重构的
         LambdaUpdateWrapper<ShortLinkDO> updateWrapper = Wrappers.lambdaUpdate(ShortLinkDO.class)
                 .eq(ShortLinkDO::getGid, requestParam.getGid())
                 .eq(ShortLinkDO::getFullShortUrl, requestParam.getFullShortUrl())
                 .eq(ShortLinkDO::getEnableStatus, 1)
+                .eq(ShortLinkDO::getDelTime, 0L)
                 .eq(ShortLinkDO::getDelFlag, 0);
-        remove(updateWrapper);      // 可以删除
-        //baseMapper.delete(updateWrapper); //数据库中还有
+        ShortLinkDO delShortLinkDO = ShortLinkDO.builder()
+                .delTime(System.currentTimeMillis())
+                .build();
+        delShortLinkDO.setDelFlag(1);
+        baseMapper.update(delShortLinkDO, updateWrapper); // 逻辑删除
     }
 }

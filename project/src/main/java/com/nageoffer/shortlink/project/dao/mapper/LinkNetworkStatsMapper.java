@@ -1,7 +1,6 @@
 package com.nageoffer.shortlink.project.dao.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.nageoffer.shortlink.project.dao.entity.LinkDeviceStatsDO;
 import com.nageoffer.shortlink.project.dao.entity.LinkNetworkStatsDO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkGroupStatsReqDTO;
 import com.nageoffer.shortlink.project.dto.req.ShortLinkStatsReqDTO;
@@ -14,7 +13,7 @@ import java.util.List;
 /**
  * 短链接网络访问监控持久层
  */
-public interface LinkNetworkStatsMapper extends BaseMapper<LinkDeviceStatsDO> {
+public interface LinkNetworkStatsMapper extends BaseMapper<LinkNetworkStatsDO> {
     /**
      * 记录访问网络监控数据
      */
