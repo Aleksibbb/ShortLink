@@ -77,13 +77,13 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             // 为什么拿到锁之后还要判断用户记录创建是否成功？
             // 因为可能有些人刚释放锁，另一个人就获取到了
             if (lock.tryLock()) {
-                try{
+                try {
                     int inserted = baseMapper.insert(BeanUtil.toBean(requestParam, UserDO.class));
                     // 2. 判断用户记录是否创建成功e1ebb82dab0e4f5fac8a8ae7891de14f
                     if (inserted < 1) {     // 数据库连接问题、事务问题、数据库异常
                         throw new ClientException(USER_SAVE_ERROR);     //用户保存失败
                     }
-                } catch (DuplicateKeyException ex){     // 唯一索引异常
+                } catch (DuplicateKeyException ex) {     // 唯一索引异常
                     throw new ClientException(USER_EXIST);
                 }
                 // 3. 将用户名信息保存到布隆过滤器
@@ -114,17 +114,34 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
                 .eq(UserDO::getDelFlag, 0);
         UserDO userDO = baseMapper.selectOne(queryWrapper);
         // 1. 判断用户是否存在
-        if(userDO == null){
+        if (userDO == null) {
             throw new ClientException(USER_NULL);
         }
-        // 2. 判断用户是否登录
+        // 2. 判断用户是否登录 （支持唯一用户登录的逻辑）
         Boolean hasLogin = stringRedisTemplate.hasKey(USER_LOGIN_KEY + requestParam.getUsername());
-        if(hasLogin){
+        if (hasLogin != null && hasLogin) {
             throw new ClientException(USER_HAS_LOGIN);
         }
+
+        // 支持多用户登录的逻辑（返回用户token即可）
+        /*Map<Object, Object> hasLoginMap = stringRedisTemplate.opsForHash().entries(USER_LOGIN_KEY + requestParam.getUsername());
+        if (CollUtil.isNotEmpty(hasLoginMap)) {
+            String token = hasLoginMap.keySet().stream()
+                    .findFirst()
+                    .map(Object::toString)
+                    .orElseThrow(() -> new ClientException("用户登录错误"));
+            return new UserLoginRespDTO(token);
+        }*/
+        /**
+         * Hash
+         * Key：short-link:admin:login:token:用户名
+         * Value：
+         *    Key: token标识
+         *    Val：JSON字符串（用户信息）
+         */
         String token = UUID.randomUUID().toString(true);
         stringRedisTemplate.opsForHash().put(USER_LOGIN_KEY + requestParam.getUsername(), token, JSON.toJSONString(userDO));
-        stringRedisTemplate.expire(USER_LOGIN_KEY + requestParam.getUsername(), USER_LOGIN_TTL, TimeUnit.DAYS);  // 改为30天
+        stringRedisTemplate.expire(USER_LOGIN_KEY + requestParam.getUsername(), USER_LOGIN_TTL, TimeUnit.MINUTES);  // 改为30天
         return new UserLoginRespDTO(token);
     }
 
@@ -136,7 +153,7 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
     @Override
     public void logout(String token, String username) {
         // 先判断用户是否登录
-        if(!checkLogin(token, username)){
+        if (!checkLogin(token, username)) {
             throw new ClientException("用户Token不存在或用户未登录");
         }
         stringRedisTemplate.opsForHash().delete(USER_LOGIN_KEY + username, token);
