@@ -211,9 +211,9 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     @Transactional(rollbackFor = Exception.class)
     @Override
     public void updateShortLink(ShortLinkUpdateReqDTO requestParam) {
-        // 验证白名单
+        // 1. 验证白名单
         verificationWhitelist(requestParam.getOriginUrl());
-        // 1. 查询数据库
+        // 2. 查询数据库
         LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
                 .eq(ShortLinkDO::getGid, requestParam.getOriginGid())
                 .eq(ShortLinkDO::getFullShortUrl, requestParam.getFullShortUrl())
@@ -223,7 +223,8 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         if (hasShortLinkDO == null) {
             throw new ClientException("短链接不存在");
         }
-        // 2. 不需要更改gid
+        // 3. 判断 gid 是否改变
+        // 没有更改
         if (Objects.equals(requestParam.getGid(), requestParam.getOriginGid())) {
             LambdaUpdateWrapper<ShortLinkDO> updateWrapper = Wrappers.lambdaUpdate(ShortLinkDO.class)
                     .eq(ShortLinkDO::getGid, requestParam.getGid())
@@ -243,16 +244,16 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     .favicon(hasShortLinkDO.getFavicon())
                     .build();
             baseMapper.update(shortLinkDO, updateWrapper);
-        } else { // 3. 需要更改gid
-            // 4. 定义读写锁
+        } else { // 更改gid
+            // 1. 定义读写锁
             RReadWriteLock readWriteLock = redissonClient.getReadWriteLock(String.format(LOCK_GID_UPDATE_KEY, requestParam.getFullShortUrl()));
             RLock rLock = readWriteLock.writeLock();
             if (!rLock.tryLock()) {
                 throw new com.nageoffer.shortlink.project.common.convention.exception.ServiceException("短链接正在被访问，请稍后再试...");
             }
             try {
-                // 5. 更新 t_link 表
-                // 5.1 逻辑删除 原短链接记录（t_link)
+                // 2. 更新 t_link 表
+                // 2.1 逻辑删除 原短链接记录（t_link)
                 LambdaUpdateWrapper<ShortLinkDO> linkUpdateWrapper = Wrappers.lambdaUpdate(ShortLinkDO.class)
                         .eq(ShortLinkDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(ShortLinkDO::getGid, hasShortLinkDO.getGid())
@@ -264,7 +265,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .build();
                 delShortLinkDO.setDelFlag(1);
                 baseMapper.update(delShortLinkDO, linkUpdateWrapper);
-                // 5.2 插入新短链接记录 (t_link)
+                // 2.2 插入新短链接记录 (t_link)
                 ShortLinkDO shortLinkDO = ShortLinkDO.builder()
                         .domain(createShortLinkDefaultDomain)
                         .originUrl(requestParam.getOriginUrl())
@@ -283,7 +284,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .delTime(0L)
                         .build();
                 baseMapper.insert(shortLinkDO);
-                // 6. 更新 t_link_stats_today 表
+                // 3. 更新 t_link_stats_today 表
                 LambdaQueryWrapper<LinkStatsTodayDO> statsTodayQueryWrapper = Wrappers.lambdaQuery(LinkStatsTodayDO.class)
                         .eq(LinkStatsTodayDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(LinkStatsTodayDO::getGid, hasShortLinkDO.getGid())
@@ -297,7 +298,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                     linkStatsTodayDOList.forEach(each -> each.setGid(requestParam.getGid()));
                     linkStatsTodayService.saveBatch(linkStatsTodayDOList);
                 }
-                // 7. 更新 t_link_goto 表
+                // 4. 更新 t_link_goto 表
                 LambdaQueryWrapper<ShortLinkGotoDO> linkGotoQueryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
                         .eq(ShortLinkGotoDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(ShortLinkGotoDO::getGid, hasShortLinkDO.getGid());
@@ -305,7 +306,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 shortLinkGotoMapper.deleteById(shortLinkGotoDO.getId());
                 shortLinkGotoDO.setGid(requestParam.getGid());
                 shortLinkGotoMapper.insert(shortLinkGotoDO);
-                // 8. 更新 t_link_access_stats 表
+                // 5. 更新 t_link_access_stats 表
                 LambdaUpdateWrapper<LinkAccessStatsDO> linkAccessStatsUpdateWrapper = Wrappers.lambdaUpdate(LinkAccessStatsDO.class)
                         .eq(LinkAccessStatsDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(LinkAccessStatsDO::getGid, hasShortLinkDO.getGid())
@@ -314,7 +315,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .gid(requestParam.getGid())
                         .build();
                 linkAccessStatsMapper.update(linkAccessStatsDO, linkAccessStatsUpdateWrapper);
-                // 9. 更新 t_link_locale_stats 表
+                // 6. 更新 t_link_locale_stats 表
                 LambdaUpdateWrapper<LinkLocaleStatsDO> linkLocaleStatsUpdateWrapper = Wrappers.lambdaUpdate(LinkLocaleStatsDO.class)
                         .eq(LinkLocaleStatsDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(LinkLocaleStatsDO::getGid, hasShortLinkDO.getGid())
@@ -323,7 +324,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .gid(requestParam.getGid())
                         .build();
                 linkLocaleStatsMapper.update(linkLocaleStatsDO, linkLocaleStatsUpdateWrapper);
-                // 10. 更新 t_link_os_stats 表
+                // 7. 更新 t_link_os_stats 表
                 LambdaUpdateWrapper<LinkOsStatsDO> linkOsStatsUpdateWrapper = Wrappers.lambdaUpdate(LinkOsStatsDO.class)
                         .eq(LinkOsStatsDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(LinkOsStatsDO::getGid, hasShortLinkDO.getGid())
@@ -332,7 +333,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .gid(requestParam.getGid())
                         .build();
                 linkOsStatsMapper.update(linkOsStatsDO, linkOsStatsUpdateWrapper);
-                // 11. 更新 t_link_browser_stats 表
+                // 8. 更新 t_link_browser_stats 表
                 LambdaUpdateWrapper<LinkBrowserStatsDO> linkBrowserStatsUpdateWrapper = Wrappers.lambdaUpdate(LinkBrowserStatsDO.class)
                         .eq(LinkBrowserStatsDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(LinkBrowserStatsDO::getGid, hasShortLinkDO.getGid())
@@ -341,7 +342,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .gid(requestParam.getGid())
                         .build();
                 linkBrowserStatsMapper.update(linkBrowserStatsDO, linkBrowserStatsUpdateWrapper);
-                // 12. 更新 t_link_device_stats 表
+                // 9. 更新 t_link_device_stats 表
                 LambdaUpdateWrapper<LinkDeviceStatsDO> linkDeviceStatsUpdateWrapper = Wrappers.lambdaUpdate(LinkDeviceStatsDO.class)
                         .eq(LinkDeviceStatsDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(LinkDeviceStatsDO::getGid, hasShortLinkDO.getGid())
@@ -350,7 +351,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .gid(requestParam.getGid())
                         .build();
                 linkDeviceStatsMapper.update(linkDeviceStatsDO, linkDeviceStatsUpdateWrapper);
-                // 13. 更新 t_link_network_stats 表
+                // 10. 更新 t_link_network_stats 表
                 LambdaUpdateWrapper<LinkNetworkStatsDO> linkNetworkStatsUpdateWrapper = Wrappers.lambdaUpdate(LinkNetworkStatsDO.class)
                         .eq(LinkNetworkStatsDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(LinkNetworkStatsDO::getGid, hasShortLinkDO.getGid())
@@ -359,7 +360,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                         .gid(requestParam.getGid())
                         .build();
                 linkNetworkStatsMapper.update(linkNetworkStatsDO, linkNetworkStatsUpdateWrapper);
-                // 14. 更新 t_link_access_logs 表
+                // 11. 更新 t_link_access_logs 表
                 LambdaUpdateWrapper<LinkAccessLogsDO> linkAccessLogsUpdateWrapper = Wrappers.lambdaUpdate(LinkAccessLogsDO.class)
                         .eq(LinkAccessLogsDO::getFullShortUrl, requestParam.getFullShortUrl())
                         .eq(LinkAccessLogsDO::getGid, hasShortLinkDO.getGid())
@@ -376,8 +377,13 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
         // 4. 判断是否更改短链接有效期类型、有效期
         // 如果更改了，就需要重新设置缓存哦
         if (!Objects.equals(hasShortLinkDO.getValidDateType(), requestParam.getValidDateType())
-                || !Objects.equals(hasShortLinkDO.getValidDate(), requestParam.getValidDate())) {
+                || !Objects.equals(hasShortLinkDO.getValidDate(), requestParam.getValidDate())
+                || !Objects.equals(hasShortLinkDO.getOriginUrl(), requestParam.getOriginUrl())) {
             stringRedisTemplate.delete(String.format(GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl()));
+            stringRedisTemplate.opsForValue().set(
+                    String.format(GOTO_SHORT_LINK_KEY, requestParam.getFullShortUrl()),
+                    requestParam.getOriginUrl(),
+                    LinkUtil.getLinkCacheValidDate(requestParam.getValidDate()), TimeUnit.MILLISECONDS);
             // 修改前的有效期已经过期
             if (hasShortLinkDO.getValidDate() != null && hasShortLinkDO.getValidDate().before(new Date())) {
                 // 修改后的有效期为永久 or 还未到有效期
