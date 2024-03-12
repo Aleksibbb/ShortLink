@@ -12,3 +12,7 @@ spring:
       port: 6379
       password: 123456
       database: 1
+
+short-link:
+  group:
+    max-num: 20
