@@ -68,4 +68,9 @@ public class ShortLinkStatsRecordDTO {
      * UIP今日初次访问标识
      */
     private Boolean uipTodayFirstFlag;
+
+    /**
+     * 消息队列唯一标识
+     */
+    private String keys;
 }
