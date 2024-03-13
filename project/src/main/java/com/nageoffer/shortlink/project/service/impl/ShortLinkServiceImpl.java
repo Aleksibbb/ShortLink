@@ -96,6 +96,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
     /**
      * 创建短链接
      */
+    @Transactional(rollbackFor = Exception.class)
     @Override
     public ShortLinkCreateRespDTO createShortLink(ShortLinkCreateReqDTO requestParam) {
         // 验证白名单
@@ -136,18 +137,11 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             shortLinkMapper.insert(shortLinkDO);
             // 5. 保存到 t_link_goto
             shortLinkGotoMapper.insert(shortLinkGotoDO);
-        } catch (DuplicateKeyException ex) {    // 捕获到唯一索引冲突
-            // TODO 已经误判的短链接如何处理
-            // 短链接确实真实存在缓存
-            // 短链接不一定存在缓存中
-            LambdaQueryWrapper<ShortLinkDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkDO.class)
-                    .eq(ShortLinkDO::getFullShortUrl, fullShortUrl);
-            ShortLinkDO hasShortLinkDO = baseMapper.selectOne(queryWrapper);
-            if (hasShortLinkDO != null) {
-                // 数据库中确实存在
-                log.warn("短链接: {} 重复入库", fullShortUrl);
-                throw new ServiceException("短链接重复生成");
-            }
+        } catch (DuplicateKeyException ex) {
+            // 捕获到唯一索引冲突,说明数据库中已存在该短链接，但是布隆过滤器中没有
+            // 加入布隆过滤器
+            shortUriCreateCachePenetrationBloomFilter.add(fullShortUrl);
+            throw new ServiceException(String.format("短链接：%s 生成", fullShortUrl));
         }
         // 6. 缓存预热
         stringRedisTemplate.opsForValue().set(
@@ -596,7 +590,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
                 throw new ServiceException("短链接频繁生成，请稍后再试");
             }
             String originUrl = requestParam.getOriginUrl();
-            originUrl += System.currentTimeMillis();
+            originUrl += UUID.fastUUID().toString();
             shortUri = HashUtil.hashToBase62(originUrl);
             // 布隆过滤器中不存在
             if (!shortUriCreateCachePenetrationBloomFilter.contains(createShortLinkDefaultDomain + "/" + shortUri)) {
