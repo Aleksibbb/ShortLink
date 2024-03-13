@@ -42,11 +42,11 @@ import static com.nageoffer.shortlink.admin.common.enums.UserErrorCodeEnum.*;
 @Service
 @RequiredArgsConstructor
 public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements UserService {
-    private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
-    private final RedissonClient redissonClient;
+    private final GroupService groupService;
     @Resource
     private StringRedisTemplate stringRedisTemplate;
-    private final GroupService groupService;
+    private final RedissonClient redissonClient;
+    private final RBloomFilter<String> userRegisterCachePenetrationBloomFilter;
 
     @Override
     public UserRespDTO getUserByUsername(String username) {

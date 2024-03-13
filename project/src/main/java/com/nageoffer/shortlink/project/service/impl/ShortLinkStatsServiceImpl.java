@@ -435,7 +435,8 @@ public class ShortLinkStatsServiceImpl implements ShortLinkStatsService {
         );
         // 5. 将访客类型字段加入到响应结果中
         actualResult.getRecords().forEach(each -> {
-            String uvType = uvTypeList.stream().filter(item -> Objects.equals(each.getUser(), item.get("user")))
+            String uvType = uvTypeList.stream()
+                    .filter(item -> Objects.equals(each.getUser(), item.get("user")))
                     .findFirst()
                     .map(item -> item.get("uvType"))
                     .map(Object::toString)

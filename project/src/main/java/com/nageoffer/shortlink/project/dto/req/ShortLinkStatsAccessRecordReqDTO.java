@@ -2,13 +2,14 @@ package com.nageoffer.shortlink.project.dto.req;
 
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.nageoffer.shortlink.project.dao.entity.LinkAccessLogsDO;
 import lombok.Data;
 
 /**
  * 短链接监控访问记录请求参数
  */
 @Data
-public class ShortLinkStatsAccessRecordReqDTO extends Page {
+public class ShortLinkStatsAccessRecordReqDTO extends Page<LinkAccessLogsDO> {
 
     /**
      * 完整短链接
