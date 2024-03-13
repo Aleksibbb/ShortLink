@@ -5,7 +5,7 @@ import org.redisson.api.RedissonClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-import static com.nageoffer.shortlink.admin.common.constant.RedisCacheConstant.BLOOM_FILTER;
+import static com.nageoffer.shortlink.admin.common.constant.RedisCacheConstant.REGISTER_BLOOM_FILTER;
 
 
 /**
@@ -19,7 +19,7 @@ public class RBloomFilterConfiguration {
      */
     @Bean
     public RBloomFilter<String> userRegisterCachePenetrationBloomFilter(RedissonClient redissonClient) {
-        RBloomFilter<String> cachePenetrationBloomFilter = redissonClient.getBloomFilter(BLOOM_FILTER);
+        RBloomFilter<String> cachePenetrationBloomFilter = redissonClient.getBloomFilter(REGISTER_BLOOM_FILTER);
         cachePenetrationBloomFilter.tryInit(100000000L, 0.001); // 用户量：一亿   误判率：0.1%
         return cachePenetrationBloomFilter;
     }

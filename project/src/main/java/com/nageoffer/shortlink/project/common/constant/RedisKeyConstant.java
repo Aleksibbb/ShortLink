@@ -5,6 +5,11 @@ package com.nageoffer.shortlink.project.common.constant;
  */
 public class RedisKeyConstant {
     /**
+     * 短链接创建布隆过滤器
+     */
+    public static final String SHORT_URI_BLOOM_FILTER = "short-link:shortUri_Create:BloomFilter";
+
+    /**
      * 短链接跳转前缀 Key
      */
     public static final String GOTO_SHORT_LINK_KEY = "short-link:goto:%s";

@@ -5,6 +5,8 @@ import org.redisson.api.RedissonClient;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.SHORT_URI_BLOOM_FILTER;
+
 /**
  * 布隆过滤器配置
  */
@@ -16,7 +18,7 @@ public class RBloomFilterConfiguration {
      */
     @Bean
     public RBloomFilter<String> shortUriCreateCachePenetrationBloomFilter(RedissonClient redissonClient) {
-        RBloomFilter<String> cachePenetrationBloomFilter = redissonClient.getBloomFilter("short-link:porject:shortUriCreate:BloomFilter");
+        RBloomFilter<String> cachePenetrationBloomFilter = redissonClient.getBloomFilter(SHORT_URI_BLOOM_FILTER);
         cachePenetrationBloomFilter.tryInit(100000000L, 0.001); // 用户量：一亿   误判率：0.1%
         return cachePenetrationBloomFilter;
     }
