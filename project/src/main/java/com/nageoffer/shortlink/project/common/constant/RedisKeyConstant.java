@@ -43,4 +43,14 @@ public class RedisKeyConstant {
      * 短链接延迟队列消费统计 Key
      */
     public static final String DELAY_QUEUE_STATS_KEY = "short-link_delay-queue:stats";
+
+    /**
+     * 短链接监控消息保存队列 Topic 缓存标识
+     */
+    public static final String SHORT_LINK_STATS_STREAM_TOPIC_KEY = "short-link:stats-stream";
+
+    /**
+     * 短链接监控消息保存队列 Group 缓存标识
+     */
+    public static final String SHORT_LINK_STATS_STREAM_GROUP_KEY = "short-link:stats-stream:only-group";
 }
