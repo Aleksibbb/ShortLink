@@ -84,10 +84,6 @@ public class UserTableShardingTest {
 //            System.out.printf((SQL_LINK_STATS_TODAY) + "%n", i);
 //        }
 
-        sort();
-
-//        int[] nums = {1,2,3,5};
-//        IntStream.of(nums).boxed().sorted((a, b) -> b - a).mapToInt(Integer::intValue).toArray();
 
 //        int[][] matrix = {{1,2,3,4},{5,6,7,8},{9,10,11,12}};
 //        List<Integer> res = spiralOrder(matrix);
@@ -127,89 +123,5 @@ public class UserTableShardingTest {
             }
         }
         return result;
-    }
-
-    public static void sort(){
-        int[] arr1 = {2, 3, 8, 1, 4, 9, 10, 7, 16, 14};
-        int[] arr2 = {2, 3, 8, 1, 4, 9, 10, 7, 16, 14};
-        heapSort(arr1, 10);
-        for (int i = 0; i < arr1.length; i++) {
-            System.out.println(arr1[i]);
-        }
-        quickSort(arr2, 0, arr2.length - 1);
-        for (int i = 0; i < arr2.length; i++) {
-            System.out.println(arr2[i]);
-        }
-    }
-
-    /**
-     * 维护堆的性质
-     * @param arr 存储堆元素的数组
-     * @param n   数组长度
-     * @param i   待维护节点的下标
-     */
-    public static void heapify(int[] arr, int n, int i){
-        int largest = i;
-        int leftSon = 2*i + 1;
-        int rightSon = 2*i + 2;
-        if(leftSon < n && arr[largest] < arr[leftSon]) largest = leftSon;
-        if(rightSon < n && arr[largest] < arr[rightSon]) largest = rightSon;
-        if(largest != i){
-            swap(arr, i, largest);
-            heapify(arr, n, largest);
-        }
-    }
-    /**
-     * 堆排序
-     * @param arr 存储堆元素的数组
-     * @param n   数组长度
-     */
-    public static void heapSort(int[] arr, int n){
-        //1. 建堆
-        for(int i = n/2 - 1; i >= 0; i--){
-            heapify(arr, n, i);
-        }
-        //2. 堆排序
-        for(int i = n - 1; i > 0; i--){
-            swap(arr, i, 0);
-            heapify(arr, i, 0);        // 这里传入的数组元素长度必须为i，因为在排序过程中，需要维护的数组长度是变小的
-        }
-    }
-
-    public static void swap(int[] nums, int i, int j) {
-        nums[i] ^= nums[j];
-        nums[j] ^= nums[i];
-        nums[i] ^= nums[j];
-    }
-
-    /**
-     * 快速排序
-     * @param arr：待排序数组
-     * @param start：起始下标
-     * @param end：终点下标
-     */
-    public static void quickSort(int[] arr, int start, int end){	//start = 0, end = arr.length - 1
-        //1. 递归的终止条件
-        if(start >= end)	return;
-        //2. 选定中心轴
-        int left = start, right = end;
-        int pivot = arr[left];
-        while(left < right){
-            //2.1 右指针 >= pivot
-            while(left < right && arr[right] >= pivot)	right--;
-            if(left < right){	// 证明此时 arr[right] < pivot
-                arr[left] = arr[right];
-                left++;
-            }
-            //2.2 左指针 <= pivot
-            while(left < right && arr[left] <= pivot)	left++;
-            if(left < right){	// 证明此时 arr[left] > pivot
-                arr[right] = arr[left];
-                right--;
-            }
-        }
-        arr[left] = pivot;
-        quickSort(arr, start, left - 1);
-        quickSort(arr, left + 1, end);
     }
 }
