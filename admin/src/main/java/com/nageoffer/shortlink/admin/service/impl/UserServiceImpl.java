@@ -121,12 +121,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
         // 2. 判断用户是否登录 （支持唯一用户登录的逻辑）
         Boolean hasLogin = stringRedisTemplate.hasKey(USER_LOGIN_KEY + requestParam.getUsername());
         if (hasLogin != null && hasLogin) {
+            stringRedisTemplate.expire(USER_LOGIN_KEY + requestParam.getUsername(), USER_LOGIN_TTL, TimeUnit.MINUTES);
             throw new ClientException(USER_HAS_LOGIN);
         }
 
         // 支持多用户登录的逻辑（返回用户token即可）
         /*Map<Object, Object> hasLoginMap = stringRedisTemplate.opsForHash().entries(USER_LOGIN_KEY + requestParam.getUsername());
         if (CollUtil.isNotEmpty(hasLoginMap)) {
+            stringRedisTemplate.expire(USER_LOGIN_KEY + requestParam.getUsername(), USER_LOGIN_TTL, TimeUnit.MINUTES);
             String token = hasLoginMap.keySet().stream()
                     .findFirst()
                     .map(Object::toString)
