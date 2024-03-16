@@ -139,8 +139,10 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             shortLinkGotoMapper.insert(shortLinkGotoDO);
         } catch (DuplicateKeyException ex) {
             // 捕获到唯一索引冲突,说明数据库中已存在该短链接，但是布隆过滤器中没有
-            // 加入布隆过滤器
-            shortUriCreateCachePenetrationBloomFilter.add(fullShortUrl);
+            // 判断是否存在布隆过滤器，如果不存在直接新增
+            if (!shortUriCreateCachePenetrationBloomFilter.contains(fullShortUrl)) {
+                shortUriCreateCachePenetrationBloomFilter.add(fullShortUrl);
+            }
             throw new ServiceException(String.format("短链接：%s 生成", fullShortUrl));
         }
         // 6. 缓存预热
