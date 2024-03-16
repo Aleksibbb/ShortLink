@@ -11,7 +11,7 @@ import static com.nageoffer.shortlink.admin.common.constant.RedisCacheConstant.R
 /**
  * 布隆过滤器配置
  */
-@Configuration
+@Configuration(value = "rBloomFilterConfigurationByAdmin")
 public class RBloomFilterConfiguration {
 
     /**
