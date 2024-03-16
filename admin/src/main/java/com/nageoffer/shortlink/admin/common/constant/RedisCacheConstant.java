@@ -18,7 +18,7 @@ public class RedisCacheConstant {
     /**
      * 用户注册布隆过滤器
      */
-    public static final String REGISTER_BLOOM_FILTER = "short-link:admin_register:BloomFilter";
+    public static final String REGISTER_BLOOM_FILTER = "userRegisterCachePenetrationBloomFilter";
 
     /**
      * 用户登录 Token Key

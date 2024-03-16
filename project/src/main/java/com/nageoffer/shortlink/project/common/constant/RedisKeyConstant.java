@@ -7,7 +7,7 @@ public class RedisKeyConstant {
     /**
      * 短链接创建布隆过滤器
      */
-    public static final String SHORT_URI_BLOOM_FILTER = "short-link:shortUri_Create:BloomFilter";
+    public static final String SHORT_URI_BLOOM_FILTER = "shortUriCreateCachePenetrationBloomFilter";
 
     /**
      * 短链接跳转前缀 Key
