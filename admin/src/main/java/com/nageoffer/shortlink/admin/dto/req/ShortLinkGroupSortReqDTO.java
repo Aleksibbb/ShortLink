@@ -3,7 +3,7 @@ package com.nageoffer.shortlink.admin.dto.req;
 import lombok.Data;
 
 /**
- * 创建短链接分组，请求参数
+ * 短链接分组排序，请求参数
  */
 @Data
 public class ShortLinkGroupSortReqDTO {
