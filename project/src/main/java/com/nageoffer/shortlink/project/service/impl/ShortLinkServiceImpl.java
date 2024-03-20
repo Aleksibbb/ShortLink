@@ -578,17 +578,6 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
      * 短链接访问基本数据监控
      */
     public void shortLinkStats(String fullShortUrl, String gid, ShortLinkStatsRecordDTO statsRecord) {
-        // 1. 如果传入 fullShortUrl 为空
-        if(StrUtil.isBlank(fullShortUrl)) {
-            fullShortUrl = statsRecord.getFullShortUrl();
-        }
-        // 2. 如果传入 gid 为空
-        if(StrUtil.isBlank(gid)) {
-            LambdaQueryWrapper<ShortLinkGotoDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
-                    .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
-            ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(queryWrapper);
-            gid = shortLinkGotoDO.getGid();
-        }
         Map<String, String> producerMap = new HashMap<>();
         producerMap.put("fullShortUrl", fullShortUrl);
         producerMap.put("gid", gid);
