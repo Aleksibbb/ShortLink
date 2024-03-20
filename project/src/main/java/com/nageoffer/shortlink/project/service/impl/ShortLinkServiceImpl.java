@@ -238,7 +238,7 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             RReadWriteLock readWriteLock = redissonClient.getReadWriteLock(String.format(LOCK_GID_UPDATE_KEY, requestParam.getFullShortUrl()));
             RLock rLock = readWriteLock.writeLock();
             if (!rLock.tryLock()) {
-                throw new com.nageoffer.shortlink.project.common.convention.exception.ServiceException("短链接正在被访问，请稍后再试...");
+                throw new ServiceException("短链接正在被访问，请稍后再试...");
             }
             try {
                 // 2. 更新 t_link 表
@@ -578,6 +578,17 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
      * 短链接访问基本数据监控
      */
     public void shortLinkStats(String fullShortUrl, String gid, ShortLinkStatsRecordDTO statsRecord) {
+        // 1. 如果传入 fullShortUrl 为空
+        if(StrUtil.isBlank(fullShortUrl)) {
+            fullShortUrl = statsRecord.getFullShortUrl();
+        }
+        // 2. 如果传入 gid 为空
+        if(StrUtil.isBlank(gid)) {
+            LambdaQueryWrapper<ShortLinkGotoDO> queryWrapper = Wrappers.lambdaQuery(ShortLinkGotoDO.class)
+                    .eq(ShortLinkGotoDO::getFullShortUrl, fullShortUrl);
+            ShortLinkGotoDO shortLinkGotoDO = shortLinkGotoMapper.selectOne(queryWrapper);
+            gid = shortLinkGotoDO.getGid();
+        }
         Map<String, String> producerMap = new HashMap<>();
         producerMap.put("fullShortUrl", fullShortUrl);
         producerMap.put("gid", gid);
@@ -588,22 +599,21 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
 
     /**
      * 生成短链接六位后缀
+     * 先使用原始链接去生成，如果发现冲突了再使用拼接 UUID 方式解决冲突。
      */
     private String generateSuffix(ShortLinkCreateReqDTO requestParam) {
-        // 避免生成的短链接重复
         int customGenerateCount = 0;
         String shortUri;
+        String originUrl = requestParam.getOriginUrl();
         while (true) {
             if (customGenerateCount > 10) {
                 throw new ServiceException("短链接频繁生成，请稍后再试");
             }
-            String originUrl = requestParam.getOriginUrl();
-            originUrl += UUID.fastUUID().toString();
             shortUri = HashUtil.hashToBase62(originUrl);
-            // 布隆过滤器中不存在
             if (!shortUriCreateCachePenetrationBloomFilter.contains(createShortLinkDefaultDomain + "/" + shortUri)) {
                 break;
             }
+            originUrl += UUID.fastUUID().toString();
             customGenerateCount++;
         }
         return shortUri;
