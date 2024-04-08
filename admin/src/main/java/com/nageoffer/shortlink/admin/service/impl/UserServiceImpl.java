@@ -73,27 +73,24 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, UserDO> implements 
             throw new ClientException(USER_NAME_EXIST);
         }
         RLock lock = redissonClient.getLock(LOCK_USER_REGISTER_KEY + requestParam.getUsername());
-        try {
-            // 尝试获取锁
-            // 为什么拿到锁之后还要判断用户记录创建是否成功？
-            // 因为可能有些人刚释放锁，另一个人就获取到了
-            if (lock.tryLock()) {
-                try {
-                    int inserted = baseMapper.insert(BeanUtil.toBean(requestParam, UserDO.class));
-                    // 2. 判断用户记录是否创建成功e1ebb82dab0e4f5fac8a8ae7891de14f
-                    if (inserted < 1) {     // 数据库连接问题、事务问题、数据库异常
-                        throw new ClientException(USER_SAVE_ERROR);     //用户保存失败
-                    }
-                } catch (DuplicateKeyException ex) {     // 唯一索引异常
-                    throw new ClientException(USER_EXIST);
-                }
-                // 3. 将用户名信息保存到布隆过滤器
-                userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
-                //注意：这里直接 groupService.saveGroup("默认分组"); 会出错
-                groupService.saveGroup(requestParam.getUsername(), "默认分组");
-                return; // return 之后还会执行finally
-            }
+        // 尝试获取锁
+        // 为什么拿到锁之后还要判断用户记录创建是否成功？
+        // 因为可能有些人刚释放锁，另一个人就获取到了
+        if (!lock.tryLock()) {
             throw new ClientException(USER_NAME_EXIST);
+        }
+        try {
+            int inserted = baseMapper.insert(BeanUtil.toBean(requestParam, UserDO.class));
+            // 2. 判断用户记录是否创建成功
+            if (inserted < 1) {     // 数据库连接问题、事务问题、数据库异常
+                throw new ClientException(USER_SAVE_ERROR);     //用户保存失败
+            }
+            // 3. 将用户名信息保存到布隆过滤器
+            userRegisterCachePenetrationBloomFilter.add(requestParam.getUsername());
+            //注意：这里直接 groupService.saveGroup("默认分组"); 会出错
+            groupService.saveGroup(requestParam.getUsername(), "默认分组");
+        } catch (DuplicateKeyException ex) {     // 唯一索引异常
+            throw new ClientException(USER_EXIST);
         } finally {
             lock.unlock();
         }
