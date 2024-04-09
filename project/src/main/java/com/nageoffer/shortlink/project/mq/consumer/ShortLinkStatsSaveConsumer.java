@@ -13,7 +13,6 @@ import com.nageoffer.shortlink.project.dao.entity.*;
 import com.nageoffer.shortlink.project.dao.mapper.*;
 import com.nageoffer.shortlink.project.dto.biz.ShortLinkStatsRecordDTO;
 import com.nageoffer.shortlink.project.mq.idempotent.MessageQueueIdempotentHandler;
-import com.nageoffer.shortlink.project.mq.producer.DelayShortLinkStatsProducer;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.redisson.api.RLock;
@@ -50,7 +49,6 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
     private final LinkDeviceStatsMapper linkDeviceStatsMapper;
     private final LinkNetworkStatsMapper linkNetworkStatsMapper;
     private final LinkStatsTodayMapper linkStatsTodayMapper;
-    private final DelayShortLinkStatsProducer delayShortLinkStatsProducer;
     private final StringRedisTemplate stringRedisTemplate;
     private final MessageQueueIdempotentHandler messageQueueIdempotentHandler;
 
@@ -99,11 +97,16 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
         // 获取读写锁
         RReadWriteLock readWriteLock = redissonClient.getReadWriteLock(String.format(LOCK_GID_UPDATE_KEY, fullShortUrl));
         RLock rLock = readWriteLock.readLock();
+
         // 获取读锁失败，说明此时有人正在修改
-        if (!rLock.tryLock()) {
+        // 延迟队列场景
+        /*if (!rLock.tryLock()) {
             delayShortLinkStatsProducer.send(statsRecord);
             return;
-        }
+        }*/
+
+        // 获取不道读锁时，就一直阻塞等待，直到获取到读锁
+        rLock.lock();
         // 获取读锁成功
         try {
             // 3. PV 访问统计

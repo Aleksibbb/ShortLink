@@ -237,9 +237,12 @@ public class ShortLinkServiceImpl extends ServiceImpl<ShortLinkMapper, ShortLink
             // 1. 定义读写锁
             RReadWriteLock readWriteLock = redissonClient.getReadWriteLock(String.format(LOCK_GID_UPDATE_KEY, requestParam.getFullShortUrl()));
             RLock rLock = readWriteLock.writeLock();
-            if (!rLock.tryLock()) {
+
+            /*if (!rLock.tryLock()) {
                 throw new ServiceException("短链接正在被访问，请稍后再试...");
-            }
+            }*/
+            // 阻塞等待，直到获取写锁
+            rLock.lock();
             try {
                 // 2. 更新 t_link 表
                 // 2.1 逻辑删除 原短链接记录（t_link)
