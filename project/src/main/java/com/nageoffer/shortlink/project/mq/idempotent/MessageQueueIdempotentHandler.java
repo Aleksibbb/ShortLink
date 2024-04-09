@@ -46,8 +46,10 @@ public class MessageQueueIdempotentHandler {
      */
     public void setAccomplish(String messageId) {
         String key = IDEMPOTENT_KEY_PREFIX + messageId;
-        if(Objects.equals(stringRedisTemplate.opsForValue().get(key), "0")){    // 先判断Key值是否为0
-            stringRedisTemplate.opsForValue().set(key, "1", 5, TimeUnit.MINUTES);
+        // 先判断Key值是否为0，不为0说明已被删除
+        // 在抛出异常之后，这里其实也不需要进行判断了
+        if(Objects.equals(stringRedisTemplate.opsForValue().get(key), "0")){
+            stringRedisTemplate.opsForValue().set(key, "1", 2, TimeUnit.MINUTES);
         }
     }
 
