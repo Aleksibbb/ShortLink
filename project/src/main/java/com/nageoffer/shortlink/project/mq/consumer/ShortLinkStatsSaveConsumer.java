@@ -15,17 +15,18 @@ import com.nageoffer.shortlink.project.dto.biz.ShortLinkStatsRecordDTO;
 import com.nageoffer.shortlink.project.mq.idempotent.MessageQueueIdempotentHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.rocketmq.spring.annotation.RocketMQMessageListener;
+import org.apache.rocketmq.spring.core.RocketMQListener;
 import org.redisson.api.RLock;
 import org.redisson.api.RReadWriteLock;
 import org.redisson.api.RedissonClient;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.redis.connection.stream.MapRecord;
-import org.springframework.data.redis.connection.stream.RecordId;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.stream.StreamListener;
 import org.springframework.stereotype.Component;
 
-import java.util.*;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Optional;
 
 import static com.nageoffer.shortlink.project.common.constant.RedisKeyConstant.LOCK_GID_UPDATE_KEY;
 import static com.nageoffer.shortlink.project.common.constant.ShortLinkConstant.AMAP_REMOTE_URL;
@@ -36,7 +37,11 @@ import static com.nageoffer.shortlink.project.common.constant.ShortLinkConstant.
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRecord<String, String, String>> {
+@RocketMQMessageListener(
+        topic = "${rocketmq.producer.topic}",
+        consumerGroup = "${rocketmq.consumer.group}"
+)
+public class ShortLinkStatsSaveConsumer implements RocketMQListener<Map<String, String>> {
 
     private final ShortLinkMapper shortLinkMapper;
     private final ShortLinkGotoMapper shortLinkGotoMapper;
@@ -49,20 +54,18 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
     private final LinkDeviceStatsMapper linkDeviceStatsMapper;
     private final LinkNetworkStatsMapper linkNetworkStatsMapper;
     private final LinkStatsTodayMapper linkStatsTodayMapper;
-    private final StringRedisTemplate stringRedisTemplate;
     private final MessageQueueIdempotentHandler messageQueueIdempotentHandler;
 
     @Value("${short-link.stats.locale.amap-key}")
     private String statsLocaleAmapKey;
 
     @Override
-    public void onMessage(MapRecord<String, String, String> message) {
-        String stream = message.getStream();
-        RecordId id = message.getId();
+    public void onMessage(Map<String, String> producerMap) {
+        String keys = producerMap.get("keys");
         // 1. 判断当前消息是否消费过（即此Key已经存在，但是不确定是否执行了完整的消费流程）
-        if(!messageQueueIdempotentHandler.isMessageProcessed(id.toString())){
+        if(!messageQueueIdempotentHandler.isMessageProcessed(keys)){
             // 2. 消费过，继续判断是否执行了完整的消费流程
-            if(messageQueueIdempotentHandler.isAccomplish(id.toString())) {
+            if(messageQueueIdempotentHandler.isAccomplish(keys)) {
                 // 3. 执行了完整的消费流程，直接返回
                 return;
             }
@@ -73,23 +76,24 @@ public class ShortLinkStatsSaveConsumer implements StreamListener<String, MapRec
         }
         // 5. 未消费过
         try {
-            Map<String, String> producerMap = message.getValue();
             String fullShortUrl = producerMap.get("fullShortUrl");
             if (StrUtil.isNotBlank(fullShortUrl)) {
                 String gid = producerMap.get("gid");
                 ShortLinkStatsRecordDTO statsRecord = JSON.parseObject(producerMap.get("statsRecord"), ShortLinkStatsRecordDTO.class);
                 actualSaveShortLinkStats(fullShortUrl, gid, statsRecord);
             }
-            // 6. 消费完，立马删除该消息
-            stringRedisTemplate.opsForStream().delete(Objects.requireNonNull(stream), id.getValue());
         } catch (Throwable ex) {
-            // 7. 捕获到异常，即某某情况发生宕机了。此时会重试。
-            messageQueueIdempotentHandler.delMessageProcessed(id.toString());
-            log.error("记录短链接监控消费异常", ex);
+            try {
+                // 6. 消费成功，就将 key 删除
+                messageQueueIdempotentHandler.delMessageProcessed(keys);
+            } catch (Throwable remoteEx) {
+                log.error("记录短链接监控消费异常", ex);
+            }
+            // 7. 抛出异常
             throw ex;
         }
         // 8. 设置消息流程执行完成
-        messageQueueIdempotentHandler.setAccomplish(id.toString());
+        messageQueueIdempotentHandler.setAccomplish(keys);
     }
 
     private void actualSaveShortLinkStats(String fullShortUrl, String gid, ShortLinkStatsRecordDTO statsRecord) {
